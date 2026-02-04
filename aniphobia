@@ -1,0 +1,119 @@
+-- EXECØ Loader Guard (Merged)
+local EXEC0_GAME = "aniphobia"
+if getgenv().EXEC0_LOADER and type(getgenv().EXEC0_TOKEN) ~= "string" then
+    return
+end
+getgenv().EXEC0_FEATURE_STARTED = getgenv().EXEC0_FEATURE_STARTED or {}
+getgenv().EXEC0_FEATURE_STARTED[EXEC0_GAME] = getgenv().EXEC0_FEATURE_STARTED[EXEC0_GAME] or {}
+local EXEC0_started = getgenv().EXEC0_FEATURE_STARTED[EXEC0_GAME]
+local function EXEC0_isOn(feature)
+    local t = getgenv().EXEC0_TOGGLES
+    return t and t[EXEC0_GAME .. "::" .. feature]
+end
+
+local function EXEC0_wrap(feature, fn)
+    if getgenv().EXEC0_LOADER then
+        if not EXEC0_isOn(feature) then
+            return
+        end
+        if EXEC0_started[feature] then
+            return
+        end
+        EXEC0_started[feature] = true
+    end
+
+    local function EXEC0_wait(...)
+        if getgenv().EXEC0_LOADER and not EXEC0_isOn(feature) then
+            error("EXEC0_STOP")
+        end
+        return wait(...)
+    end
+
+    local function EXEC0_task_wait(...)
+        if getgenv().EXEC0_LOADER and not EXEC0_isOn(feature) then
+            error("EXEC0_STOP")
+        end
+        return task.wait(...)
+    end
+
+    local ok, err = pcall(function()
+        local wait = EXEC0_wait
+        local task = {
+            wait = EXEC0_task_wait,
+            spawn = task.spawn,
+            defer = task.defer,
+            delay = task.delay,
+        }
+        fn()
+    end)
+    if not ok and tostring(err) ~= "EXEC0_STOP" then
+        warn(err)
+    end
+end
+
+-- Infiniteammo
+local function EXEC0_feature_1()
+    getgenv().InfiniteMag = true
+    
+    local magSize = 100      -- can be 10, 50, 999 or whatever, loop will keep forcing it anyway
+    local plsWait = 0.1      -- dont touch this, controls how fast mag refreshes
+    
+    local plrs = game:GetService("Players")
+    local lp = plrs.LocalPlayer
+    
+    local function forceMag(gunClient)
+        if not gunClient then return end
+    
+        local magTbl
+    
+        for _,v in pairs(getgc(true)) do
+            if typeof(v) == "function" then
+                local fenv = getfenv(v)
+                if fenv and fenv.script == gunClient then
+                    local info = debug.getinfo(v)
+                    if info and info.name == "OnSwitching" then
+                        local up = debug.getupvalue(v, 6) -- yes its 6, dont ask
+                        if type(up) == "table" and up.Mag ~= nil then
+                            magTbl = up
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        if magTbl then
+            task.spawn(function()
+                while true do
+                    task.wait(plsWait)
+                    if getgenv().InfiniteMag then
+                        magTbl.Mag = magSize
+                    end
+                end
+            end)
+        end
+    end
+    
+    local function onChar(char)
+        for _,c in ipairs(char:GetChildren()) do
+            local gc = c:FindFirstChild("GunClient")
+            if gc then
+                forceMag(gc)
+            end
+        end
+    
+        char.ChildAdded:Connect(function(c)
+            task.wait(0.1) -- roblox moment
+            local gc = c:FindFirstChild("GunClient")
+            if gc then
+                forceMag(gc)
+            end
+        end)
+    end
+    
+    if lp.Character then
+        onChar(lp.Character)
+    end
+    
+    lp.CharacterAdded:Connect(onChar)
+end
+EXEC0_wrap("Infiniteammo", EXEC0_feature_1)
