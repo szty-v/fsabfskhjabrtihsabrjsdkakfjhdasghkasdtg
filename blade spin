@@ -1,0 +1,50 @@
+-- EXECØ Loader Guard
+local EXEC0_KEY = "blade spin/inf exp and coin.txt"
+local function EXEC0_isOn()
+    local t = getgenv().EXEC0_TOGGLES
+    return t and t[EXEC0_KEY]
+end
+
+if getgenv().EXEC0_LOADER and not EXEC0_isOn() then
+    return
+end
+
+local function EXEC0_wait(...)
+    if getgenv().EXEC0_LOADER and not EXEC0_isOn() then
+        error("EXEC0_STOP")
+    end
+    return wait(...)
+end
+
+local function EXEC0_task_wait(...)
+    if getgenv().EXEC0_LOADER and not EXEC0_isOn() then
+        error("EXEC0_STOP")
+    end
+    return task.wait(...)
+end
+
+local function EXEC0_run()
+    while true do
+        Events:WaitForChild("AddCoins"):FireServer(20000)
+        Events:WaitForChild("AddXP"):FireServer(20000)
+        task.wait(0.1)
+    end
+end
+
+if getgenv().EXEC0_LOADER then
+    local ok, err = pcall(function()
+        local wait = EXEC0_wait
+        local task = {
+            wait = EXEC0_task_wait,
+            spawn = task.spawn,
+            defer = task.defer,
+            delay = task.delay,
+        }
+        EXEC0_run()
+    end)
+    if not ok and tostring(err) ~= "EXEC0_STOP" then
+        warn(err)
+    end
+else
+    EXEC0_run()
+end
